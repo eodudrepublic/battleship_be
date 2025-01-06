@@ -28,7 +28,9 @@ class AttackStatusResponse(BaseModel):
     opponent: int
     attack_position_x: str
     attack_position_y: int
-    is_attacked: str
+    attack_status: str
+    damage_status: str
+
 
 class AttackRequest(BaseModel):
     room_code: str
@@ -44,7 +46,7 @@ class DamageRequest(BaseModel):
     room_code: str
     attack_position_x: str
     attack_position_y: int
-    is_attacked: str
+    damage_status: str
     is_finished: bool
 
     class Config:

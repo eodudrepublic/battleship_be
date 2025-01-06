@@ -2,7 +2,7 @@ import datetime
 from pydantic import BaseModel
 
 class AppUserRequest(BaseModel):
-    user_id: str
+    user_id: int
     nickname: str
     profile_image_url: str
 

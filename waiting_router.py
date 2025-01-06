@@ -1,10 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
 from waiting_list_service import (
     add_user_to_waiting_list,
     remove_user_from_waiting_list,
     get_waiting_list,
     match_users,
 )
+from uuid import uuid4
+from models.game import GameRoom
+from database import get_db
+
 router = APIRouter()
 
 @router.post("/add")
@@ -28,6 +33,12 @@ def get_waiting_list_route():
     return {"waiting_list": get_waiting_list()}
 
 @router.get("/match")
-def match_users_route():
+def match_users_route(db: Session = Depends(get_db)):
     matched_users = match_users()
-    return matched_users
+    room_code = str(uuid4())[:8]
+    while (db.query(GameRoom).filter(GameRoom.room_code==room_code).first()):
+        room_code = str(uuid4())[:8]
+    return {
+        "room_code": room_code,
+        "matched_users": matched_users
+    }
