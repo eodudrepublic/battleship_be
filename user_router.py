@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from database import get_db
-from schemas import AppUserRequest
-from models import AppUser
+from schemas.user import AppUserRequest
+from models.user import AppUser
 
 
 router = APIRouter()
@@ -43,3 +43,9 @@ def manage_user(user: AppUserRequest, db: Session = Depends(get_db)):
                 "profile_image_url": new_user.profile_image_url,
             },
         }
+    
+@router.get("/")
+def get_users(db: Session = Depends(get_db)):
+    """모든 유저 조회"""
+    users = db.query(AppUser).all()  # 동기 쿼리
+    return users

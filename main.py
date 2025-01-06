@@ -3,15 +3,20 @@ from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-from database import engine
-from models import Base
+import game_router
+import user_router
+import waiting_router
+# from router import games, users
+# from database import engine
 
-import controllers
+from database import init_db
 
-Base.metadata.create_all(bind=engine)
-
+init_db()
 app = FastAPI()
-app.include_router(controllers.router)
+
+app.include_router(user_router.router, prefix="/users", tags=["Users"])
+app.include_router(game_router.router, prefix="/games", tags=["Games"])
+app.include_router(waiting_router.router, prefix="/matching", tags=["Matching"])
 
 # CORS 설정
 app.add_middleware(
@@ -21,3 +26,11 @@ app.add_middleware(
     allow_methods=["*"],  # 모든 HTTP 메서드 허용 (GET, POST, PUT 등)
     allow_headers=["*"],  # 모든 헤더 허용
 )
+
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to the BattleShip API"}
+
+@app.get("/hello")
+def hello():
+    return {"message" : "Hello World!"}

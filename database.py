@@ -2,6 +2,7 @@ import json
 import os
 
 from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -24,6 +25,13 @@ engine = create_engine(DATABASE_URL, echo=True)
 
 # 세션 팩토리 생성
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+
+def init_db():
+    """데이터베이스 초기화"""
+    from models.game import Base  # 모델 임포트
+    Base.metadata.create_all(bind=engine)
 
 def get_db():
     """FastAPI의 Dependency로 사용할 DB 세션 스코프 함수"""
