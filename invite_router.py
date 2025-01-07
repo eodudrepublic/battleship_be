@@ -55,9 +55,7 @@ def start_game(host_id: int=Query(...), db: Session = Depends(get_db)):
     db.refresh(new_attack)
 
 
-    invite_link = f"http://172.10.7.63/invite/join-room?room_code={created_room_code}"
-
-    return {"room_code": created_room_code, "invite_link": invite_link}
+    return {"room_code": created_room_code}
 
 @router.get("/join-room")
 def join_room_via_link(room_code: str = Query(...), invited_id: int = Query(...), db:Session = Depends(get_db)):
