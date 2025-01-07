@@ -3,7 +3,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from random import choice
 from uuid import uuid4
-from datetime import datetime, timedelta
 
 from schemas.game import GameStartRequest, GameStatusResponse, AttackStatusResponse, AttackRequest, DamageRequest
 from schemas.invite import InviteStatusRequest, JoinRequest
@@ -35,17 +34,15 @@ def start_game(host_id: int=Query(...), db: Session = Depends(get_db)):
         status = "before",
         player_first = host_id,
         player_last = 0,
-        is_finished = False,
-        created_time = datetime.utcnow()
+        first_board = [],
+        last_board = []
     )
 
     new_attack = Attack(
         room_code = created_room_code,
         attacker = host_id,
         opponent = 0,
-        attack_position_x = "",
-        attack_position_y = 0,
-        attack_status = 'not yet',
+        attack_position = "",
         damage_status = 'not yet'
     )
     db.add(new_room)
@@ -53,7 +50,6 @@ def start_game(host_id: int=Query(...), db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_room)
     db.refresh(new_attack)
-
 
     return {"room_code": created_room_code}
 
@@ -78,16 +74,7 @@ def join_room_via_link(room_code: str = Query(...), invited_id: int = Query(...)
         raise HTTPException(status_code=404, detail="Room not found")
     if not attack:
         raise HTTPException(status_code=404, detail="Room not found")
-    
-    expiry_duration = timedelta(minutes=10)
-    expiry_time = room.created_time + expiry_duration
-    now = datetime.utcnow()
-    if now > expiry_time:
-        db.delete(room)
-        db.delete(attack)
-        db.commit()
-    
-        raise HTTPException(status_code=403, detail="Invite link has expired")
+
 
     first_player = choice([room.player_first, invited_id])
     last_player = invited_id if first_player == room.player_first else room.player_first
@@ -119,23 +106,13 @@ def join_room_via_link(room_code: str = Query(...), invited_id: int = Query(...)
         return {"message": "user not found"}
 
 @router.get("/invitation-status")
-def get_invitation_status(invite_info: InviteStatusRequest, db: Session = Depends(get_db)):
-    room = db.query(GameRoom).filter(GameRoom.room_code == invite_info.room_code).first()
+def get_invitation_status(room_code: str = Query(...), host_id: int = Query(...), db: Session = Depends(get_db)):
+    room = db.query(GameRoom).filter(GameRoom.room_code == room_code).first()
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
     
-    expiry_duration = timedelta(minutes=10)
-    expiry_time = room.created_time + expiry_duration
-    now = datetime.utcnow()
-    if now > expiry_time:
-        current_attack = db.query(Attack).filter(Attack.room_code == invite_info.room_code).first()
-        db.delete(room)
-        db.delete(current_attack)
-        db.commit()
     
-        raise HTTPException(status_code=403, detail="Invite link has expired")
-    
-    if (room.player_last == 0):
+    if (room.status == "before"):
         return {
             "is_matched": False,
             "room_code": "",
@@ -143,17 +120,17 @@ def get_invitation_status(invite_info: InviteStatusRequest, db: Session = Depend
             "is_first": False
         }
     else:
-        if (invite_info.host_id == room.player_first):
+        if (host_id == room.player_first):
             return {
                 "is_matched": True,
-                "room_code": invite_info.room_code,
+                "room_code": room_code,
                 "opponent": room.player_last,
                 "is_first": True
                 }
-        elif (invite_info.host_id == room.player_last):
+        elif (host_id == room.player_last):
             return {
                 "is_matched": True,
-                "room_code": invite_info.room_code,
+                "room_code": room_code,
                 "opponent": room.player_first,
                 "is_first": False
             }
