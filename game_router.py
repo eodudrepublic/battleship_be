@@ -8,40 +8,6 @@ from database import get_db
 
 router = APIRouter()
 
-@router.post("/start")
-def start_game(game: GameStartRequest, db: Session = Depends(get_db)):
-    existing_room = db.query(GameRoom).filter(GameRoom.room_code == game.room_code).first()
-    if existing_room:
-        raise HTTPException(status_code=400, detail="Game already exists")
-    
-    random_first = choice([game.player1_id, game.player2_id])
-    random_later = game.player2_id if random_first == game.player1_id else game.player1_id
-
-    new_game = GameRoom(
-        room_code = game.room_code,
-        status = 'in_progress',
-        player_first = random_first,
-        player_last = random_later,
-        is_finished = False
-    )
-
-    new_attack = Attack(
-        room_code = game.room_code,
-        opponent = random_later,
-        attacker = random_first,
-        attack_position_x = "",
-        attack_position_y = 0,
-        attack_status = "not yet",
-        damage_status = "not yet"
-    )
-
-    db.add(new_attack)
-    db.add(new_game)
-    db.commit()
-    db.refresh(new_game)
-    db.refresh(new_attack)
-
-    return new_game
 
 @router.post("/attack", response_model=AttackStatusResponse)
 def attack(attack_info: AttackRequest, db: Session = Depends(get_db)):
@@ -61,10 +27,19 @@ def attack(attack_info: AttackRequest, db: Session = Depends(get_db)):
         db.refresh(new_attack)
         return new_attack
     
+    # 공격자, 수비자가 유효한지 확인
+    current_room = db.query(GameRoom).filter(GameRoom.room_code == attack_info.room_code).first()
+    if not current_room:
+        raise HTTPException(status_code=404, detail="Game room not found")
+    
+    if attack_info.attacker not in [current_room.player_first, current_room.player_last] or \
+        attack_info.opponent not in [current_room.player_first, current_room.player_last]:
+        raise HTTPException(status_code=400, detail="Invalid attacker or opponent")
+
+    # 현재 턴 확인
     if current_attack.attacker != attack_info.attacker:
         raise HTTPException(status_code=400, detail="Not your turn")
     
-    # user 정보가 app_users에 있는지 확인
     current_attack.attacker= attack_info.attacker
     current_attack.opponent = attack_info.opponent
     current_attack.attack_position_x = attack_info.attack_position_x
@@ -92,23 +67,40 @@ def damage(damage_info: DamageRequest, db: Session = Depends(get_db)):
     if not current_attack:
         raise HTTPException(status_code=404, detail="No attack found")
     
+    # 피해 정보가 올바른 공격에 대한 정보인지 확인
+    if damage_info.attack_position_x != current_attack.attack_position_x or \
+        damage_info.attack_position_y != current_attack.attack_position_y:
+        return {"message" : "Invalid damage response"}
+
     current_attack.damage_status = damage_info.damage_status
     db.commit()
 
     if damage_info.is_finished:
         current_game = db.query(GameRoom).filter(GameRoom.room_code == damage_info.room_code).first()
-        # current_game.is_finished = True
-        db.delete(current_game)
+        if not current_attack:
+            raise HTTPException(status_code=404, detail="No game room found")
+        current_game.is_finished = True
+        current_game.status = "completed"
         db.commit()
         return {"message": "finished"}
 
-    return current_attack
+    return {"message" : "not finished"}
 
 @router.get("/damage_status", response_model=AttackStatusResponse)
 def damage_status(room_code: str, db: Session = Depends(get_db)):
     current_attack = db.query(Attack).filter(Attack.room_code == room_code).first()
     if not current_attack:
         raise HTTPException(status_code=404, detail="Damage info doesn't exist")
+    
+    # 게임 종료
+    if current_attack.damage_status == "finished":
+        current_game = db.query(GameRoom).filter(GameRoom.room_code == room_code).first()
+        if not current_attack:
+            raise HTTPException(status_code=404, detail="No game room found")
+        db.delete(current_game)
+        db.delete(current_attack)
+        db.commit()
+        return {"message" : "finished"}
     return current_attack
 
 @router.post("/end-turn", response_model=AttackStatusResponse)

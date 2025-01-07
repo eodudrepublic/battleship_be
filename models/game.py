@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Enum, String, Boolean, BigInteger
+from sqlalchemy import Column, Integer, String, Enum, String, Boolean, BigInteger, DateTime
 from models import Base
 
 class GameRoom(Base):
@@ -10,6 +10,7 @@ class GameRoom(Base):
     player_first = Column(BigInteger, nullable=False)      # 현재 turn인 AppUser의 id
     player_last = Column(BigInteger, nullable=False)
     is_finished = False
+    created_time = Column(DateTime, nullable=False)
 
 class Attack(Base):
     __tablename__ = "attacks"
@@ -21,4 +22,4 @@ class Attack(Base):
     attack_position_x = Column(String(1), nullable=True)
     attack_position_y = Column(BigInteger, nullable=True)
     attack_status = Column(Enum('not yet', 'attack'))
-    damage_status = Column(Enum('not yet', 'damaged', 'missed'))
+    damage_status = Column(Enum('not yet', 'damaged', 'missed', 'finished'))
