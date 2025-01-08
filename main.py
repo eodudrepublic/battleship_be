@@ -6,9 +6,7 @@ from sqlalchemy.orm import Session
 import game_router
 import user_router
 import invite_router
-import sologame_router
-# from router import games, users
-# from database import engine
+
 
 from database import init_db
 
@@ -18,7 +16,6 @@ app = FastAPI()
 app.include_router(user_router.router, prefix="/users", tags=["Users"])
 app.include_router(game_router.router, prefix="/games", tags=["Games"])
 app.include_router(invite_router.router, prefix="/invite", tags=["Invite"])
-app.include_router(sologame_router.router, prefix="/sologames", tags=["SoloGames"])
 
 # CORS 설정
 app.add_middleware(

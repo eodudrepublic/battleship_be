@@ -29,7 +29,7 @@ def create_sologame(user_id: int, db: Session = Depends(get_db)):
 
     new_room = GameRoom(
         room_code = created_room_code,
-        status = "before",
+        status = "in_progress",
         player_first = first_player,
         player_last = last_player,
         first_board = [],
@@ -112,7 +112,7 @@ def attack(attack_info: AttackRequest, db: Session = Depends(get_db)):
     # 공격자, 수비자가 유효한지 확인
     if attack_info.attacker not in [current_room.player_first, current_room.player_last] or \
         attack_info.opponent not in [current_room.player_first, current_room.player_last]:
-        if (attack_info.attacker != 0):
+        if (attack_info.attacker != 0 and attack_info.opponent != 0):
             raise HTTPException(status_code=400, detail="Invalid attacker or opponent")
 
     # 현재 턴 확인
@@ -169,6 +169,31 @@ def damage(room_code: str, db: Session = Depends(get_db)):
     if not current_attack:
         raise HTTPException(status_code=404, detail="Attack not found")
     
+    if (current_attack.attacker == 0 or current_attack.opponent == 0):
+        current_attack.attacker = 0
+        current_attack.opponent = current_room.player_first if current_room.player_last == 0 else current_room.player_last
+        current_attack.attack_position = create_attack_coordinate()
+
+        # 공격 성공 여부 확인
+        if (current_attack.opponent == current_room.player_first):
+            target_board = current_room.first_board.copy()
+        else:
+            target_board = current_room.last_board.copy()
+
+        if (current_attack.attack_position in target_board):
+            current_attack.damage_status = 'damaged'
+            target_board.remove(current_attack.attack_position)
+        else:
+            current_attack.damage_status = 'missed'
+
+        # 수정된 보드 상태를 다시 저장
+        if current_attack.opponent == current_room.player_first:
+            current_room.first_board = target_board
+        else:
+            current_room.last_board = target_board
+        
+        db.commit()
+
     response = {
         "room_code": current_attack.room_code,
         "attacker": current_attack.attacker,
