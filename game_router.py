@@ -237,5 +237,17 @@ def get_status(room_code: str, db: Session = Depends(get_db)):
 @router.get("/")
 def get_rooms(db: Session = Depends(get_db)):
     """진행 중인 모든 게임 조회"""
-    rooms = db.query(GameRoom).all()  # 동기 쿼리
+    rooms = db.query(GameRoom).all()
     return rooms
+
+@router.delete("/delete")
+def delete_room(room_code: str, db: Session = Depends(get_db)):
+    """삭제"""
+    current_game = db.query(GameRoom).filter(GameRoom.room_code == room_code).first()
+    if not current_game:
+        raise HTTPException(status_code=400, detail="Game doesn't exist")
+
+    db.delete(current_game)
+    db.commit()
+    
+    return {"message": "room deleted"}
